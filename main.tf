@@ -26,7 +26,7 @@ module "vpc" {
 
 # ── Subnets (4 subnets via for_each) ─────────────────────────────────
 module "subnets" {
-  source = "git::https://github.com/ygminds73/terraform-module-subnet.git"
+  source = "https://github.com/rupali-sapkal/terraform-module-subnet-main.git"
 
   for_each          = var.subnets
   subnet_name       = "${local.name_prefix}-${each.key}"
