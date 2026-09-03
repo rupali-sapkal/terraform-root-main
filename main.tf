@@ -39,7 +39,7 @@ module "subnets" {
 
 # ── EC2 Instances (2 instances via for_each) ─────────────────────────
 module "ec2_instances" {
-  source = "git::https://github.com/ygminds73/terraform-module-ec2.git"
+  source = "git::https://github.com/rupali-sapkal/terraform-module-ec2-main.git"
 
   for_each      = var.ec2_instances
   instance_name = "${local.name_prefix}-${each.key}"
