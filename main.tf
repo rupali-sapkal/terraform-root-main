@@ -17,7 +17,7 @@ locals {
 
 # ── VPC ──────────────────────────────────────────────────────────────
 module "vpc" {
-  source = "https://github.com/rupali-sapkal/terraform-module-vpc-main.git"
+  source = "git::https://github.com/rupali-sapkal/terraform-module-vpc-main.git"
 
   cidr_block = var.vpc_cidr
   vpc_name   = "${local.name_prefix}-vpc"
@@ -26,7 +26,7 @@ module "vpc" {
 
 # ── Subnets (4 subnets via for_each) ─────────────────────────────────
 module "subnets" {
-  source = "https://github.com/rupali-sapkal/terraform-module-subnet-main.git"
+  source = "git::https://github.com/rupali-sapkal/terraform-module-subnet-main.git"
 
   for_each          = var.subnets
   subnet_name       = "${local.name_prefix}-${each.key}"
@@ -54,7 +54,7 @@ module "ec2_instances" {
 
 # ── S3 Bucket ─────────────────────────────────────────────────────────
 module "s3_bucket" {
-  source = "https://github.com/rupali-sapkal/terraform-module-s3-main.git"
+  source = "git::https://github.com/rupali-sapkal/terraform-module-s3-main.git"
 
   bucket_name = "${local.name_prefix}-${var.bucket_suffix}"
   environment = var.environment
