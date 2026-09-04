@@ -2,7 +2,7 @@ environment   = "uat"
 project_name  = "myapp"
 aws_region    = "us-east-1"
 vpc_cidr      = "10.1.0.0/16"
-bucket_suffix = "assets-uat-20240101"
+bucket_suffix = "assets-uat-20240101-1234-123"
 
 tags = {
   Owner      = "qa-team"
