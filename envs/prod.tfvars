@@ -2,7 +2,7 @@ environment   = "prod"
 project_name  = "myapp"
 aws_region    = "us-east-1"
 vpc_cidr      = "10.2.0.0/16"
-bucket_suffix = "assets-prod-20240101"
+bucket_suffix = "assets-prod-20240101-123-1-1-2"
 
 tags = {
   Owner      = "platform-team"
