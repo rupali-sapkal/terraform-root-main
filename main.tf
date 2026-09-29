@@ -15,39 +15,8 @@ locals {
   )
 }
 
-# ── ALB Security Group (standalone) ──────────────────────────────────
-resource "aws_security_group" "alb_sg" {
-  name        = "${local.name_prefix}-alb-sg"
-  description = "Security group for ALB"
-  vpc_id      = module.vpc.vpc_id
 
-  ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
 
-  ingress {
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = merge(local.common_tags, {
-    Name = "${local.name_prefix}-alb-sg"
-  })
-
-  depends_on = [module.vpc]
-}
 # ── VPC ──────────────────────────────────────────────────────────────
 
 module "vpc" {
@@ -86,6 +55,70 @@ module "ec2_instances" {
   tags          = merge(local.common_tags, { Role = "web-server" })
 }
 
+
+# ─────────────────────────────────────────────
+# ELB MODULE
+# ─────────────────────────────────────────────
+
+module "elb" {
+  source = "git::https://github.com/rupali-sapkal/terraform-module-elb.git"
+
+  name = "${local.name_prefix}-elb"
+
+  # VPC public subnets
+  subnets = module.vpc.public_subnets
+
+  # ELB Security Group
+  security_groups = [
+    aws_security_group.alb_sg.id
+  ]
+
+  # Internet-facing ELB
+  internal = false
+
+  # ELB listener
+  listener = [
+    {
+      instance_port     = 8080
+      instance_protocol = "HTTP"
+      lb_port           = 80
+      lb_protocol       = "HTTP"
+    }
+  ]
+
+  # Jenkins health check
+  health_check = {
+    target              = "HTTP:8080/login"
+    interval            = 30
+    healthy_threshold   = 2
+    unhealthy_threshold = 3
+    timeout             = 5
+  }
+
+  # Jenkins EC2 instance
+  number_of_instances = 1
+
+  instances = [
+    aws_instance.jenkins.id
+  ]
+
+  tags = local.common_tags
+
+  depends_on = [
+    module.vpc,
+    aws_security_group.alb_sg
+  ]
+}
+
+
+# ─────────────────────────────────────────────
+# ELB DNS OUTPUT
+# ─────────────────────────────────────────────
+
+output "elb_dns_name" {
+  description = "ELB DNS name"
+  value       = module.elb.elb_dns_name
+}
 # ── S3 Bucket ─────────────────────────────────────────────────────────
 module "s3_bucket" {
   source = "git::https://github.com/rupali-sapkal/terraform-module-s3-main.git"
