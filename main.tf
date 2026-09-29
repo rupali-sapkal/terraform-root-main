@@ -34,7 +34,8 @@ module "vpc" {
 
   cidr_block = var.vpc_cidr
   vpc_name   = "${local.name_prefix}-vpc"
-  tags       = local.common_tags
+
+  tags = local.common_tags
 }
 
 
@@ -53,12 +54,19 @@ module "subnets" {
   vpc_id            = module.vpc.vpc_id
   is_public         = each.value.is_public
 
+  # Associate public subnets with the VPC public route table
+  public_route_table_id = each.value.is_public ? module.vpc.public_route_table_id : null
+
   tags = merge(
     local.common_tags,
     {
       SubnetType = each.value.is_public ? "public" : "private"
     }
   )
+
+  depends_on = [
+    module.vpc
+  ]
 }
 
 
@@ -87,6 +95,11 @@ module "ec2_instances" {
       Role = "web-server"
     }
   )
+
+  depends_on = [
+    module.vpc,
+    module.subnets
+  ]
 }
 
 
@@ -101,6 +114,8 @@ resource "aws_security_group" "alb_sg" {
 
   # HTTP - Internet to ALB
   ingress {
+    description = "Allow HTTP from Internet"
+
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
@@ -109,6 +124,8 @@ resource "aws_security_group" "alb_sg" {
 
   # HTTPS - Internet to ALB
   ingress {
+    description = "Allow HTTPS from Internet"
+
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
@@ -117,6 +134,8 @@ resource "aws_security_group" "alb_sg" {
 
   # ALB outbound traffic
   egress {
+    description = "Allow all outbound traffic"
+
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
@@ -143,19 +162,19 @@ module "elb" {
 
   vpc_id = module.vpc.vpc_id
 
-  # Use only public subnets for the ALB
+  # Only public subnets for Internet-facing ALB
   subnets = [
     for key, subnet in module.subnets :
     subnet.subnet_id
     if var.subnets[key].is_public
   ]
 
-  # ALB security group
+  # ALB Security Group
   security_groups = [
     aws_security_group.alb_sg.id
   ]
 
-  # Register all EC2 instances with the ALB
+  # Register EC2 instances with ALB
   instance_ids = {
     for key, instance in module.ec2_instances :
     key => instance.instance_id
