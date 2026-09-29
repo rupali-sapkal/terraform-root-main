@@ -57,35 +57,89 @@ module "ec2_instances" {
 
 
 # ─────────────────────────────────────────────
+# VPC MODULE
+# ─────────────────────────────────────────────
+
+module "vpc" {
+  source = "git::https://github.com/rupali-sapkal/terraform-module-vpc-main.git"
+
+  cidr_block = var.vpc_cidr
+  vpc_name   = "${local.name_prefix}-vpc"
+  tags       = local.common_tags
+}
+
+
+# ─────────────────────────────────────────────
+# ALB SECURITY GROUP
+# ─────────────────────────────────────────────
+
+resource "aws_security_group" "alb_sg" {
+  name        = "${local.name_prefix}-alb-sg"
+  description = "Security group for ALB"
+  vpc_id      = module.vpc.vpc_id
+
+  # HTTP
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # HTTPS
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # Outbound
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = merge(local.common_tags, {
+    Name = "${local.name_prefix}-alb-sg"
+  })
+}
+
+
+# ─────────────────────────────────────────────
 # ELB MODULE
 # ─────────────────────────────────────────────
 
 module "elb" {
   source = "git::https://github.com/rupali-sapkal/terraform-module-elb.git"
 
-  name = "${local.name_prefix}-elb"
+  name = "${local.name_prefix}-jenkins"
 
-  # VPC public subnets
+  # VPC ID
+  vpc_id = module.vpc.vpc_id
+
+  # Public subnets
   subnets = module.vpc.public_subnets
 
-  # ELB Security Group
+  # ALB Security Group
   security_groups = [
     aws_security_group.alb_sg.id
   ]
 
-  # Internet-facing ELB
-  internal = false
+  # Jenkins EC2 instance IDs
+  instance_ids = {
+    jenkins = aws_instance.jenkins.id
+  }
 
-  # ELB listener
-  listener = [
-    {
-      instance_port     = 8080
-      instance_protocol = "HTTP"
-      lb_port           = 80
-      lb_protocol       = "HTTP"
-    }
+  tags = local.common_tags
+
+  depends_on = [
+    module.vpc,
+    aws_security_group.alb_sg
   ]
-
+}
   # Jenkins health check
   health_check = {
     target              = "HTTP:8080/login"
