@@ -91,10 +91,85 @@ module "ec2_instances" {
 
 
 # ─────────────────────────────────────────────
+# ALB SECURITY GROUP
+# ─────────────────────────────────────────────
+
+resource "aws_security_group" "alb_sg" {
+  name        = "${local.name_prefix}-alb-sg"
+  description = "Security group for Application Load Balancer"
+  vpc_id      = module.vpc.vpc_id
+
+  # HTTP - Internet to ALB
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # HTTPS - Internet to ALB
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # ALB outbound traffic
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${local.name_prefix}-alb-sg"
+    }
+  )
+}
 
 
+# ─────────────────────────────────────────────
+# APPLICATION LOAD BALANCER
+# ─────────────────────────────────────────────
 
+module "elb" {
+  source = "git::https://github.com/rupali-sapkal/terraform-module-elb.git"
 
+  name = "${local.name_prefix}-jenkins"
+
+  vpc_id = module.vpc.vpc_id
+
+  # Use only public subnets for the ALB
+  subnets = [
+    for key, subnet in module.subnets :
+    subnet.subnet_id
+    if var.subnets[key].is_public
+  ]
+
+  # ALB security group
+  security_groups = [
+    aws_security_group.alb_sg.id
+  ]
+
+  # Register all EC2 instances with the ALB
+  instance_ids = {
+    for key, instance in module.ec2_instances :
+    key => instance.instance_id
+  }
+
+  tags = local.common_tags
+
+  depends_on = [
+    module.vpc,
+    module.subnets,
+    module.ec2_instances,
+    aws_security_group.alb_sg
+  ]
+}
 
 
 # ─────────────────────────────────────────────
