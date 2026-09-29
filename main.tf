@@ -57,16 +57,7 @@ module "ec2_instances" {
 
 
 # ─────────────────────────────────────────────
-# VPC MODULE
-# ─────────────────────────────────────────────
 
-module "vpc" {
-  source = "git::https://github.com/rupali-sapkal/terraform-module-vpc-main.git"
-
-  cidr_block = var.vpc_cidr
-  vpc_name   = "${local.name_prefix}-vpc"
-  tags       = local.common_tags
-}
 
 
 # ─────────────────────────────────────────────
